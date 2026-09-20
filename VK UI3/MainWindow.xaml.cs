@@ -120,6 +120,15 @@ namespace VK_UI3
         [DllImport("user32.dll")]
         private static extern IntPtr SetWindowLongPtr(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
 
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetForegroundWindow();
+
+        [DllImport("user32.dll")]
+        private static extern bool IsIconic(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        private static extern bool IsWindowVisible(IntPtr hWnd);
+
         // Константы стилей
         private const int GWL_EXSTYLE = -20;
         private const uint WS_EX_TOOLWINDOW = 0x00000080;
@@ -592,6 +601,10 @@ namespace VK_UI3
         /// </summary>
         private void InitializeTwitchChecking()
         {
+            // Гарантируем наличие иконки в трее, чтобы баллон о стриме мог быть показан
+            // даже когда окно скрыто в трей или приложение работает в фоне.
+            EnsureTrayIcon();
+
             // Немедленный запрос при запуске приложения
             _ = checkTwitchStatusAsync();
 
@@ -602,6 +615,65 @@ namespace VK_UI3
                 _twitchCheckTimer.Interval = TimeSpan.FromHours(1);
                 _twitchCheckTimer.Tick += async (s, e) => await checkTwitchStatusAsync();
                 _twitchCheckTimer.Start();
+            }
+        }
+
+        /// <summary>
+        /// Создаёт иконку в системном трее при необходимости, чтобы можно было
+        /// показывать ненавязчивый баллон о начале стрима.
+        /// </summary>
+        private void EnsureTrayIcon()
+        {
+            try
+            {
+                if (_trayIconManager == null)
+                {
+                    var hwnd = WindowNative.GetWindowHandle(this);
+                    if (hwnd == IntPtr.Zero)
+                        return;
+                    _trayIconManager = new TrayIconManager(hwnd, this);
+                }
+                else
+                {
+                    _trayIconManager.ShowTrayIconAgain();
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка инициализации иконки в трее: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Определяет, стоит ли показывать баллон в трее о начале стрима.
+        /// Показываем только когда главное окно не на переднем плане (скрыто в трей,
+        /// свёрнуто или находится за другими окнами), чтобы не дублировать внутренний
+        /// Flyout и не отвлекать от работы/игры.
+        /// </summary>
+        private bool ShouldShowBalloon()
+        {
+            try
+            {
+                var hwnd = WindowNative.GetWindowHandle(this);
+                if (hwnd == IntPtr.Zero)
+                    return false;
+
+                // Окно свёрнуто (в т.ч. скрыто в трей) — баллон показываем.
+                if (IsIconic(hwnd))
+                    return true;
+
+                // Окно невидимо (скрыто) — баллон показываем.
+                if (!IsWindowVisible(hwnd))
+                    return true;
+
+                // Окно видимо, но не является активным (за другими окнами) — баллон показываем.
+                return GetForegroundWindow() != hwnd;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка проверки активности окна: {ex.Message}");
+                // При ошибке предпочитаем показать баллон (надёжность охвата).
+                return true;
             }
         }
 
@@ -638,6 +710,12 @@ namespace VK_UI3
                         DB.TwitchNotifManager.MarkAsNotified(login, today);
 
                         CreateTwitchLiveNotification(status);
+
+                        // Показываем ненавязчивый баллон в трее, но только когда окно не
+                        // на переднем плане (скрыто/свёрнуто/в фоне) — чтобы не дублировать
+                        // внутренний Flyout и не отвлекать от работы/игры.
+                        if (ShouldShowBalloon())
+                            ShowTwitchBalloon(status);
                     }
                     catch (Exception ex)
                     {
@@ -669,6 +747,36 @@ namespace VK_UI3
                 $"Стример {displayName} сейчас в эфире!"
             );
             notification.Type = NotificationType.Standard;
+        }
+
+        /// <summary>
+        /// Показывает уведомления о том, что стример в эфире: системное Windows-уведомление
+        /// (Action Center) и, если оно недоступно, ненавязчивый баллон в системном трее.
+        /// </summary>
+        private void ShowTwitchBalloon(Helpers.TwitchStreamStatus status)
+        {
+            try
+            {
+                string displayName = status.DisplayName;
+                string title = $"🔴 {displayName} сейчас в эфире";
+                string text = !string.IsNullOrWhiteSpace(status.title)
+                    ? status.title
+                    : $"Стример {displayName} начал стрим на Twitch";
+
+                // Основной канал — системное уведомление (сохраняется в Action Center,
+                // видно даже когда окно скрыто). Если оно недоступно — резерв в виде баллона.
+                bool shown = Helpers.TwitchWindowsNotificationService.Show(title, text, status.Login);
+
+                if (!shown)
+                {
+                    EnsureTrayIcon();
+                    _trayIconManager?.ShowBalloon(title, text);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка показа уведомления о стриме: {ex.Message}");
+            }
         }
         #endregion
 

@@ -9,10 +9,14 @@ namespace VK_UI3
     public class TrayIconManager : IDisposable
     {
         private const uint NIM_ADD = 0x00000000;
+        private const uint NIM_MODIFY = 0x00000001;
         private const uint NIM_DELETE = 0x00000002;
         private const uint NIF_MESSAGE = 0x00000001;
         private const uint NIF_ICON = 0x00000002;
         private const uint NIF_TIP = 0x00000004;
+        private const uint NIF_INFO = 0x00000010;
+        private const uint NIIF_INFO = 0x00000000;
+        private const uint NIIF_NOSOUND = 0x00000008;
         private const uint WM_APP = 0x8000;
         private const uint WM_TRAYICON = WM_APP + 1;
         private const int WM_LBUTTONUP = 0x0202;
@@ -32,6 +36,14 @@ namespace VK_UI3
             public IntPtr hIcon;
             [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
             public string szTip;
+            public uint dwState;
+            public uint dwStateMask;
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
+            public string szInfo;
+            public uint uTimeout;
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 64)]
+            public string szInfoTitle;
+            public uint dwInfoFlags;
         }
 
         private readonly IntPtr _windowHandle;
@@ -129,6 +141,43 @@ namespace VK_UI3
                 _trayIconHandle = IntPtr.Zero;
             }
             _iconAdded = false;
+        }
+
+        /// <summary>
+        /// Показывает ненавязчивый баллон рядом с иконкой в системном трее.
+        /// Без звукового сигнала (NIIF_NOSOUND) и без акцентов предупреждения.
+        /// Если иконка ещё не добавлена в трей — добавляет её.
+        /// </summary>
+        public void ShowBalloon(string title, string text)
+        {
+            try
+            {
+                if (!_iconAdded)
+                    AddTrayIcon();
+
+                if (!_iconAdded)
+                    return;
+
+                var nid = new NOTIFYICONDATA
+                {
+                    cbSize = (uint)Marshal.SizeOf(typeof(NOTIFYICONDATA)),
+                    hWnd = _windowHandle,
+                    uID = _iconId,
+                    uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP | NIF_INFO,
+                    uCallbackMessage = WM_TRAYICON,
+                    hIcon = _trayIconHandle,
+                    szTip = "Music M",
+                    szInfo = string.IsNullOrEmpty(text) ? string.Empty : text,
+                    szInfoTitle = string.IsNullOrEmpty(title) ? string.Empty : title,
+                    dwInfoFlags = NIIF_INFO | NIIF_NOSOUND
+                };
+
+                Shell_NotifyIcon(NIM_MODIFY, ref nid);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Ошибка показа баллона в трее: {ex.Message}");
+            }
         }
 
         [DllImport("user32.dll")]

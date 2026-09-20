@@ -238,6 +238,34 @@ namespace VK_UI3
 
             m_window.Activate();
 
+            // Инициализация системных Windows-уведомлений о начале стрима на Twitch.
+            // Работает и в packaged, и в unpacked режимах. При клике по уведомлению
+            // открываем страницу стримера в браузере, а если логин не указан — активируем окно.
+            Helpers.TwitchWindowsNotificationService.Initialize((login) =>
+            {
+                try
+                {
+                    if (!string.IsNullOrWhiteSpace(login))
+                    {
+                        // Открываем Twitch-канал стримера во внешнем браузере.
+                        var url = $"https://www.twitch.tv/{Uri.EscapeDataString(login)}";
+                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url)
+                        {
+                            UseShellExecute = true
+                        });
+                        return;
+                    }
+
+                    var window = MainWindow.mainWindow;
+                    if (window == null)
+                        return;
+                    window.DispatcherQueue.TryEnqueue(() => window.ShowWindowAgain());
+                }
+                catch
+                {
+                }
+            });
+
             //   await (appUpdater.CheckForUpdaterBool)
         }
 
