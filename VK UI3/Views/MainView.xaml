@@ -148,6 +148,7 @@
                         AutomationProperties.Name="Панель поиска"
                         AutomationProperties.HelpText="Панель для поиска музыки и контента" />
                     <krotos:NavigateFrame x:Name="ContentFrame" Grid.Row="1" AutomationProperties.Name="Фрейм содержимого" AutomationProperties.HelpText="Область отображения основного содержимого" />
+                    <Grid x:Name="RhythmHost" Grid.Row="1" Visibility="Collapsed" />
                 </Grid>
             </NavigationView>
             <controlLyryc:LyricsPage
@@ -178,13 +179,22 @@
                 AutomationProperties.Name="Список воспроизведения"
                 AutomationProperties.HelpText="Отображает список треков в текущем плейлисте" />
         </Grid>
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
         <Frame
-            Grid.Row="1"
+            x:Name="PlayerTransportHost"
             VerticalAlignment="Bottom"
             BorderThickness="0,1,0,0"
             AutomationProperties.Name="Плеер"
             AutomationProperties.HelpText="Основной музыкальный плеер приложения">
             <custom:AudioPlayer Margin="0,0,0,0" AutomationProperties.Name="Аудио плеер" AutomationProperties.HelpText="Компонент управления воспроизведением музыки" />
         </Frame>
+        <ToggleSwitch x:Name="RhythmToggle" Grid.Column="1" Header="Taiko"
+                      Margin="8,0,12,0" VerticalAlignment="Center"
+                      AutomationProperties.Name="Игровой режим Taiko" Toggled="RhythmToggle_Toggled" />
+        </Grid>
     </Grid>
 </Page>

@@ -366,3 +366,5 @@ FodyWeavers.xsd
 /Build/Unpacked/net6.0/VkNet.dll
 /Decompile
 .codeassistant/mcp.json
+# Local FFmpeg executable; supplied from a downloaded build, not Git source.
+/VK UI3/Tools/*.exe

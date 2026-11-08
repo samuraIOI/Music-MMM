@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using MusicX.Services.Player;
 using MusicX.Services.Player.Sources;
@@ -25,6 +25,7 @@ namespace VK_UI3.Services
         #region Constants and Static Fields
 
         public const int MEDIA_KEY_DEBOUNCE_MS = 250;
+        public static bool RhythmGameActive { get; set; }
         public static readonly IEnumerable<ITrackMediaSource> _mediaSources = App._host.Services.GetRequiredService<IEnumerable<ITrackMediaSource>>();
         public static MediaPlayer _mediaPlayer = new MediaPlayer();
         public static IVKGetAudio _iVKGetAudio = null;
@@ -121,6 +122,7 @@ namespace VK_UI3.Services
 
         public static void Initialize(Window window)
         {
+            VK_UI3.Rhythm.ListeningAnalytics.Initialize(window);
             if (_isInitialized) return;
             _mainWindow = window;
 
@@ -205,6 +207,7 @@ namespace VK_UI3.Services
         private static void SystemControls_ButtonPressed(SystemMediaTransportControls sender,
             SystemMediaTransportControlsButtonPressedEventArgs args)
         {
+
             MainWindow.mainWindow.DispatcherQueue.TryEnqueue(() =>
             {
                 switch (args.Button)
@@ -245,6 +248,7 @@ namespace VK_UI3.Services
 
         private static void MediaPlayer_MediaEnded(Windows.Media.Playback.MediaPlayer sender, object args)
         {
+
             // Проверяем режим повтора
             var repeatMode = SettingsTable.GetSetting("playNext")?.settingValue ?? "RepeatAll";
 
@@ -296,7 +300,7 @@ namespace VK_UI3.Services
         private static void CommandManager_NextReceived(MediaPlaybackCommandManager sender,
             MediaPlaybackCommandManagerNextReceivedEventArgs args)
         {
-            Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread().TryEnqueue(() =>
+            MainWindow.mainWindow.DispatcherQueue.TryEnqueue(() =>
             {
                 PlayNextTrack();
             });
@@ -305,7 +309,7 @@ namespace VK_UI3.Services
         private static void CommandManager_PreviousReceived(MediaPlaybackCommandManager sender,
             MediaPlaybackCommandManagerPreviousReceivedEventArgs args)
         {
-            Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread().TryEnqueue(() =>
+            MainWindow.mainWindow.DispatcherQueue.TryEnqueue(() =>
             {
                 HandlePreviousTrack();
             });
@@ -314,7 +318,7 @@ namespace VK_UI3.Services
         private static void CommandManager_PauseReceived(MediaPlaybackCommandManager sender,
             MediaPlaybackCommandManagerPauseReceivedEventArgs args)
         {
-            Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread().TryEnqueue(() =>
+            MainWindow.mainWindow.DispatcherQueue.TryEnqueue(() =>
             {
                 _mediaPlayer.Pause();
             });
@@ -323,7 +327,8 @@ namespace VK_UI3.Services
         private static void CommandManager_PlayReceived(MediaPlaybackCommandManager sender,
             MediaPlaybackCommandManagerPlayReceivedEventArgs args)
         {
-            Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread().TryEnqueue(() =>
+
+            MainWindow.mainWindow.DispatcherQueue.TryEnqueue(() =>
             {
                 _mediaPlayer.Play();
             });
@@ -469,6 +474,7 @@ namespace VK_UI3.Services
 
         public static void PlayNextTrack()
         {
+
             // Более надежный debounce с блокировкой
             if (!Monitor.TryEnter(_trackSwitchLock))
             {
@@ -582,6 +588,7 @@ namespace VK_UI3.Services
         /// </summary>
         public static void HandlePreviousTrack()
         {
+
             lock (_previousTrackLock)
             {
                 var now = DateTime.Now;
@@ -595,6 +602,12 @@ namespace VK_UI3.Services
                 _lastPreviousTrackTime = now;
 
                 // Основная логика метода
+                if (RhythmGameActive && _mediaPlayer.PlaybackSession.Position.TotalSeconds >= 3)
+                {
+                    _mediaPlayer.PlaybackSession.Position = TimeSpan.Zero;
+                    _mediaPlayer.Play();
+                    return;
+                }
                 if (_mediaPlayer.Position.TotalSeconds >= 3)
                 {
                     _mediaPlayer.Position = TimeSpan.Zero;
@@ -615,6 +628,7 @@ namespace VK_UI3.Services
 
         private async static Task PlayTrack(long? v = 0, TimeSpan? position = null)
         {
+
             // Ограничиваем количество одновременных вызовов PlayTrack
             if (!await _playTrackSemaphore.WaitAsync(TimeSpan.FromMilliseconds(500)))
             {
@@ -757,7 +771,7 @@ namespace VK_UI3.Services
                 oldItem.AudioTracksChanged -= MediaPlaybackItem_AudioTracksChanged;
                 oldItem.TimedMetadataTracksChanged -= MediaPlaybackItem_TimedMetadataTracksChanged;
             }
-            
+
             // Создаем новый CancellationToken для этой операции
             var loadCancellationToken = new CancellationTokenSource(TimeSpan.FromSeconds(30));
 
@@ -1057,6 +1071,7 @@ namespace VK_UI3.Services
         /// </summary>
         public static void ExecuteAction(PlayerAction action)
         {
+
             switch (action)
             {
                 case PlayerAction.PlayPause:

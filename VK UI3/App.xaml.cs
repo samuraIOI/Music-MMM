@@ -141,6 +141,14 @@ namespace VK_UI3
 
             foreach (Process process in Process.GetProcessesByName(current.ProcessName))
             {
+                // Only redirect to the same build. Installed Music M and a fork may coexist.
+                try
+                {
+                    if (!string.Equals(process.MainModule?.FileName, current.MainModule?.FileName, StringComparison.OrdinalIgnoreCase))
+                        continue;
+                }
+                catch (System.ComponentModel.Win32Exception) { continue; }
+                catch (InvalidOperationException) { continue; }
                 Windows.Win32.Foundation.BOOL EnumWindowCallback(Windows.Win32.Foundation.HWND hwnd, Windows.Win32.Foundation.LPARAM lParam)
                 {
                     uint processId;

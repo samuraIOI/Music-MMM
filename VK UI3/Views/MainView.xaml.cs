@@ -48,6 +48,25 @@ namespace VK_UI3.Views
         public static MainView mainView;
         private static NavigateFrame frame;
         public NavigateFrame ContentFramePublic => ContentFrame;
+        private VK_UI3.Rhythm.RhythmView rhythmView;
+        private void RhythmToggle_Toggled(object sender, RoutedEventArgs e)
+        {
+            if (RhythmHost == null) return;
+            if (RhythmToggle.IsOn)
+            {
+                rhythmView = new VK_UI3.Rhythm.RhythmView();
+                RhythmHost.Children.Add(rhythmView);
+                RhythmHost.Visibility = Visibility.Visible;
+                ContentFrame.Visibility = Visibility.Collapsed;
+            }
+            else
+            {
+                rhythmView?.Close(); rhythmView = null;
+                PlayerTransportHost.IsEnabled = true;
+                RhythmHost.Children.Clear(); RhythmHost.Visibility = Visibility.Collapsed;
+                ContentFrame.Visibility = Visibility.Visible;
+            }
+        }
 
         public MainView()
         {
@@ -90,6 +109,7 @@ namespace VK_UI3.Views
 
         private void MainView_Unloaded(object sender, RoutedEventArgs e)
         {
+            if (RhythmToggle.IsOn) RhythmToggle.IsOn = false;
             ContentFrame.Navigated -= ContentFrame_Navigated;
             NavWiv.BackRequested -= NavWiv_BackRequested;
             AccountsDB.ChanhgeActiveAccount -= ChangeAccount;

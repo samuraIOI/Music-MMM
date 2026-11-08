@@ -79,6 +79,7 @@ namespace VK_UI3
             InitializeUIComponents();
             InitializeNavigation();
             MediaPlayerService.Initialize(this);
+            VK_UI3.Rhythm.AudioExportSmokeTest.Initialize();
         }
 
         private void InitializeWindowProperties()

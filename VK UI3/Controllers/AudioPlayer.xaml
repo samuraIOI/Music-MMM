@@ -104,8 +104,6 @@
 						Clip="{x:Null}"
 						Maximum="{x:Bind TrackDurationMs, Mode=TwoWay, Converter={StaticResource LongToDoubleConverter}}"
 						Minimum="0"
-						PointerEntered="VolumeSlider_PointerEntered"
-						PointerExited="VolumeSlider_PointerExited"
 						StepFrequency="1"
 						ThumbToolTipValueConverter="{StaticResource SecondsToTimeConverter}"
 						ValueChanged="VolumeSlider_ValueChanged"

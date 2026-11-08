@@ -193,6 +193,13 @@ namespace VK_UI3.Controllers
 
         private void InitializeEvents()
         {
+            // Hovering must never be treated as a seek gesture. Slider handles
+            // pointer events internally; observe handled events as well.
+            VolumeSlider.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler(VolumeSlider_PointerPressed), true);
+            VolumeSlider.AddHandler(UIElement.PointerReleasedEvent, new PointerEventHandler(VolumeSlider_PointerReleased), true);
+            VolumeSlider.AddHandler(UIElement.PointerCaptureLostEvent, new PointerEventHandler(VolumeSlider_PointerReleased), true);
+            VolumeSlider.AddHandler(UIElement.KeyDownEvent, new KeyEventHandler(VolumeSlider_KeyDown), true);
+            VolumeSlider.AddHandler(UIElement.KeyUpEvent, new KeyEventHandler(VolumeSlider_KeyUp), true);
             this.SizeChanged += RootGrid_SizeChanged;
             if (RootGrid != null)
                 RootGrid.SizeChanged += RootGrid_SizeChanged;
@@ -278,7 +285,7 @@ namespace VK_UI3.Controllers
         private void MediaPlayerService_PositionChanged(object sender, TimeSpan e)
         {
             TrackPositionMs = (long)e.TotalMilliseconds;
-            SliderPositionMs = TrackPositionMs;
+            if (!isManualChange) SliderPositionMs = TrackPositionMs;
         }
 
         private void AudioPlayer_PropertyChanged(object sender, EventArgs e)
@@ -359,24 +366,31 @@ namespace VK_UI3.Controllers
             if (isManualChange)
             {
                 SliderPositionMs = (long)e.NewValue;
-                VK_UI3.Services.MediaPlayerService.MediaPlayer.PlaybackSession.Position = TimeSpan.FromMilliseconds(e.NewValue);
             }
         }
 
         private void VolumeSlider_PointerReleased(object sender, PointerRoutedEventArgs e)
         {
+            if (!isManualChange) return;
             isManualChange = false;
+            MediaPlayer.PlaybackSession.Position = TimeSpan.FromMilliseconds(VolumeSlider.Value);
         }
 
-        private void VolumeSlider_PointerEntered(object sender, PointerRoutedEventArgs e)
+        private void VolumeSlider_PointerPressed(object sender, PointerRoutedEventArgs e)
         {
             isManualChange = true;
         }
 
-        private void VolumeSlider_PointerExited(object sender, PointerRoutedEventArgs e)
+        private void VolumeSlider_KeyDown(object sender, KeyRoutedEventArgs e)
         {
+            if (e.Key is Windows.System.VirtualKey.Left or Windows.System.VirtualKey.Right or Windows.System.VirtualKey.Up or Windows.System.VirtualKey.Down or Windows.System.VirtualKey.Home or Windows.System.VirtualKey.End or Windows.System.VirtualKey.PageUp or Windows.System.VirtualKey.PageDown)
+                isManualChange = true;
+        }
+        private void VolumeSlider_KeyUp(object sender, KeyRoutedEventArgs e)
+        {
+            if (!isManualChange) return;
             isManualChange = false;
-            SliderPositionMs = TrackPositionMs;
+            MediaPlayer.PlaybackSession.Position = TimeSpan.FromMilliseconds(VolumeSlider.Value);
         }
 
         private void SoundSlider_ValueChanged(object sender, RangeBaseValueChangedEventArgs e)
